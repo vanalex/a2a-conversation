@@ -118,24 +118,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    """
-    Prerequisites:
-    1. Install dependencies:
-       uv sync
-       # or
-       pip install langgraph kafka-python langchain-openai python-dotenv
-
-    2. Set your OpenAI API key in .env file:
-       OPENAI_API_KEY=your-api-key-here
-
-    3. Start Kafka:
-       docker run -d -p 9092:9092 apache/kafka:latest
-
-    4. Run the application:
-       python -m src.a2a_conversation.main
-       # or
-       uv run python -m src.a2a_conversation.main
-    """
     try:
         main()
     except KeyboardInterrupt:
