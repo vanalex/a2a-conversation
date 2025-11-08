@@ -1,0 +1,19 @@
+[project]
+name = "a2a-conversation"
+version = "0.1.0"
+description = "LangGraph AI Conversation Agents with Apache Kafka - Two AI agents engage in natural conversation using LLMs"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "kafka-python>=2.2.15",
+    "langchain-openai>=1.0.2",
+    "langgraph>=1.0.2",
+]
+
+[project.scripts]
+a2a-conversation = "a2a_conversation.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
