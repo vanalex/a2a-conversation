@@ -8,10 +8,10 @@ Messages are passed through Kafka topics.
 import time
 import threading
 
-from .config.settings import KafkaConfig, LLMConfig, AppConfig
-from .agents.conversational_agent import ConversationalAgent
-from .utils.logging_config import setup_logging, get_logger
-from .utils.conversation import print_conversation_summary
+from a2a_conversation.config.settings import KafkaConfig, LLMConfig, AppConfig
+from a2a_conversation.agents.conversational_agent import ConversationalAgent
+from a2a_conversation.agents.pii_monitor_agent import PIIMonitorAgent
+from a2a_conversation.utils.logging_config import setup_logging, get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -86,6 +86,19 @@ def main() -> None:
         send_topic=kafka_config.bob_topic,
         max_turns=app_config.max_turns,
     )
+
+    # Create PII Monitor
+    logger.info("Creating PII Monitor agent...")
+    pii_monitor = PIIMonitorAgent(
+        kafka_config=kafka_config,
+        llm_config=llm_config,
+        monitor_topics=[kafka_config.alice_topic, kafka_config.bob_topic],
+    )
+
+    # Start PII Monitor
+    logger.info("Starting PII Monitor...")
+    pii_thread = threading.Thread(target=pii_monitor.run, daemon=True)
+    pii_thread.start()
 
     # Start Bob in listening mode
     logger.info("Starting Bob in listening mode...")
