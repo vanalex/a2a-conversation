@@ -8,6 +8,7 @@ Alice (a curious marine biologist) and Bob (a philosophical software engineer) c
 ## Features (a.k.a. Why is this fun?)
 - Two independent agents that talk to each other through Kafka topics
 - Small, readable LangGraph state machine: listen → reason → respond → (maybe) continue
+- **PII Monitor Agent**: Real-time observer that detects personally identifiable information violations
 - Pluggable personas for delightful chaos
 - Bounded conversations via `max_turns` so your GPUs (and patience) survive
 - Production-grade structured logging (no more `print()` statements)
@@ -34,23 +35,8 @@ Code to peek at: `src/a2a_conversation/` package with modular components.
 
 
 ## Installation
-You can use pip:
 
-```bash
-# from the repo root
-python -m venv .venv && source .venv/bin/activate  # or your platform equivalent
-pip install -U pip
-pip install -r <(python - <<'PY'
-import tomllib, sys
-with open('pyproject.toml','rb') as f:
-    data = tomllib.load(f)
-for dep in data['project']['dependencies']:
-    print(dep)
-PY
-)
-```
-
-Or with uv (fast, nice, recommended):
+With uv (fast, nice, recommended):
 
 ```bash
 # if you have uv installed
