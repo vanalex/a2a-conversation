@@ -50,6 +50,34 @@ class LLMConfig:
 
 
 @dataclass
+class LangSmithConfig:
+    """LangSmith observability configuration."""
+    tracing_enabled: bool = False
+    endpoint: str = "https://api.smith.langchain.com"
+    api_key: str = ""
+    project: str = "a2a-conversation"
+
+    @classmethod
+    def from_env(cls) -> "LangSmithConfig":
+        """Create configuration from environment variables."""
+        tracing = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
+        return cls(
+            tracing_enabled=tracing,
+            endpoint=os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"),
+            api_key=os.getenv("LANGCHAIN_API_KEY", ""),
+            project=os.getenv("LANGCHAIN_PROJECT", "a2a-conversation"),
+        )
+
+    def setup(self) -> None:
+        """Set up LangSmith tracing environment variables."""
+        if self.tracing_enabled and self.api_key:
+            os.environ["LANGCHAIN_TRACING_V2"] = "true"
+            os.environ["LANGCHAIN_ENDPOINT"] = self.endpoint
+            os.environ["LANGCHAIN_API_KEY"] = self.api_key
+            os.environ["LANGCHAIN_PROJECT"] = self.project
+
+
+@dataclass
 class AppConfig:
     """Application configuration."""
     max_turns: int = 12

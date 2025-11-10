@@ -8,7 +8,7 @@ Messages are passed through Kafka topics.
 import time
 import threading
 
-from a2a_conversation.config.settings import KafkaConfig, LLMConfig, AppConfig
+from a2a_conversation.config.settings import KafkaConfig, LLMConfig, AppConfig, LangSmithConfig
 from a2a_conversation.agents.conversational_agent import ConversationalAgent
 from a2a_conversation.agents.pii_monitor_agent import PIIMonitorAgent
 from a2a_conversation.utils.logging_config import setup_logging, get_logger
@@ -46,6 +46,7 @@ def main() -> None:
     kafka_config = KafkaConfig.from_env()
     llm_config = LLMConfig.from_env()
     app_config = AppConfig.from_env()
+    langsmith_config = LangSmithConfig.from_env()
 
     # Setup logging
     setup_logging(
@@ -53,12 +54,23 @@ def main() -> None:
         log_file=app_config.log_file,
     )
 
+    # Setup LangSmith observability
+    langsmith_config.setup()
+
     logger.info("=" * 60)
     logger.info("Starting A2A Conversation Agents")
     logger.info("=" * 60)
     logger.info(f"Kafka brokers: {kafka_config.bootstrap_servers}")
     logger.info(f"LLM model: {llm_config.model}")
     logger.info(f"Max turns: {app_config.max_turns}")
+
+    # Log LangSmith status
+    if langsmith_config.tracing_enabled and langsmith_config.api_key:
+        logger.info(f"LangSmith tracing: ENABLED (project: {langsmith_config.project})")
+        logger.info(f"View traces at: https://smith.langchain.com")
+    else:
+        logger.info("LangSmith tracing: DISABLED")
+
     logger.info("=" * 60)
 
     # Define agent personas

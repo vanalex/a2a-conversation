@@ -8,6 +8,8 @@ from typing import List, Dict, Optional
 from kafka import KafkaConsumer
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from ..config.settings import KafkaConfig, LLMConfig
 from ..utils.logging_config import get_logger
@@ -94,6 +96,12 @@ class PIIMonitorAgent:
             logger.error(f"Failed to setup Kafka for PII monitor: {e}")
             raise
 
+    @traceable(
+        name="check_for_pii",
+        run_type="llm",
+        tags=["pii-detection", "security", "compliance"],
+        metadata={"agent_type": "pii_monitor"}
+    )
     def check_for_pii(self, message: str, speaker: str) -> Optional[Dict]:
         """
         Use LLM to analyze message for PII violations.
@@ -106,6 +114,18 @@ class PIIMonitorAgent:
             Dictionary with violation details if PII found, None otherwise
         """
         logger.debug(f"Analyzing message from {speaker} for PII")
+
+        # Add trace metadata
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.metadata = {
+                    "speaker": speaker,
+                    "message_length": len(message),
+                    "pii_categories_checked": len(self.PII_CATEGORIES),
+                }
+        except Exception:
+            pass
 
         try:
             system_prompt = f"""You are a PII (Personally Identifiable Information) detection expert.
@@ -165,6 +185,10 @@ If no PII is found, set has_pii to false and leave other fields empty."""
             logger.error(f"Error during PII analysis: {e}", exc_info=True)
             return None
 
+    @traceable(
+        name="process_message",
+        tags=["kafka", "message-processing"],
+    )
     def process_message(self, data: Dict) -> None:
         """
         Process incoming message and check for PII.
@@ -177,6 +201,19 @@ If no PII is found, set has_pii to false and leave other fields empty."""
         turn_count = data.get("turn_count", 0)
 
         logger.info(f"Processing message from {speaker} (Turn {turn_count})")
+
+        # Add trace metadata
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.metadata = {
+                    "speaker": speaker,
+                    "turn_count": turn_count,
+                    "total_messages_monitored": len(self.conversation_history) + 1,
+                    "total_violations_so_far": len(self.pii_violations),
+                }
+        except Exception:
+            pass
 
         # Add to conversation history
         self.conversation_history.append(

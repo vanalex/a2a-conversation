@@ -9,6 +9,8 @@ Alice (a curious marine biologist) and Bob (a philosophical software engineer) c
 - Two independent agents that talk to each other through Kafka topics
 - Small, readable LangGraph state machine: listen → reason → respond → (maybe) continue
 - **PII Monitor Agent**: Real-time observer that detects personally identifiable information violations
+- **Real-time Visualization**: Streamlit dashboard and LangGraph graph visualization
+- **LangSmith Observability**: Full tracing and monitoring with LangSmith for LLMOps
 - Pluggable personas for delightful chaos
 - Bounded conversations via `max_turns` so your GPUs (and patience) survive
 - Production-grade structured logging (no more `print()` statements)
@@ -127,12 +129,173 @@ Default topics (from the code):
 - Bob sends on: `bob-messages`, listens on: `alice-messages`
 
 
+## Visualization
+
+The project includes three visualization options with different dependency requirements:
+
+### Option 1: Built-in Text Visualization (No Extra Dependencies)
+
+Generate Mermaid diagrams and view text-based graph structure:
+
+```bash
+uv run python examples/visualize_graph.py
+```
+
+This creates a `conversation_graph.mmd` file you can:
+- View at [mermaid.live](https://mermaid.live/)
+- Embed in GitHub markdown (renders automatically)
+- Use in documentation
+
+### Option 2: Real-Time Streamlit Dashboard (Optional)
+
+First, install the optional dashboard dependencies:
+```bash
+uv sync --extra dashboard
+# or with pip
+pip install -e ".[dashboard]"
+```
+
+Then launch the interactive dashboard to monitor conversations in real-time:
+
+```bash
+streamlit run src/a2a_conversation/dashboard.py
+```
+
+Features:
+- **Live conversation timeline** with color-coded messages
+- **Statistics dashboard** showing message counts and lengths
+- **State graph visualization** of the LangGraph workflow
+- **Auto-refresh** to see new messages as they arrive
+- **Full conversation history** with detailed state information
+
+The dashboard will open in your browser at `http://localhost:8501`
+
+**Note:** On Python 3.14, you may need cmake to build pyarrow (a Streamlit dependency). Consider using Python 3.11-3.12 for the dashboard.
+
+### Option 3: Static PNG/SVG Visualization (Optional)
+Generate a static visualization of the LangGraph state machine:
+
+```python
+from a2a_conversation.agents.conversational_agent import ConversationalAgent
+from a2a_conversation.utils.visualization import visualize_graph, print_graph_structure
+
+# After creating an agent
+alice = ConversationalAgent(...)
+
+# Generate PNG visualization
+visualize_graph(alice.graph, "conversation_graph.png")
+
+# Or generate Mermaid diagram
+visualize_graph(alice.graph, "conversation_graph.mmd", format="mermaid")
+
+# Print text structure
+print_graph_structure(alice.graph)
+```
+
+**Prerequisites for static PNG/SVG visualization (optional):**
+```bash
+# Install system dependency first
+# macOS
+brew install graphviz
+
+# Ubuntu/Debian
+sudo apt-get install graphviz graphviz-dev
+
+# Then install the optional Python package
+uv pip install -e ".[viz]"
+# or with pip
+pip install -e ".[viz]"
+```
+
+Note: The Streamlit dashboard works without `pygraphviz` - it uses Mermaid diagrams instead!
+
+## LangSmith Observability
+
+This project includes comprehensive LangSmith integration for production-grade observability and LLMOps.
+
+### Setup
+
+1. Get your LangSmith API key from [smith.langchain.com](https://smith.langchain.com)
+
+2. Add to your `.env`:
+   ```env
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_API_KEY=your-langsmith-api-key-here
+   LANGCHAIN_PROJECT=a2a-conversation
+   ```
+
+3. Run your agents - tracing happens automatically!
+
+### What's Traced
+
+**Conversational Agents:**
+- `listen_for_message`: Kafka message consumption with timing
+- `reason_with_llm`: LLM reasoning with context, turn count, and conversation history
+- `send_response`: Message publishing with metadata
+- `start_conversation` / `run_agent`: Full conversation lifecycle
+
+**PII Monitor Agent:**
+- `check_for_pii`: PII detection analysis with categories checked
+- `process_message`: Message processing pipeline with violation counts
+
+**Trace Metadata Includes:**
+- Agent names and roles (initiator/listener)
+- Turn counts and conversation length
+- Message lengths and response times
+- PII detection results (types, severity, violations)
+- Conversation history context
+
+### Viewing Traces
+
+Once enabled, view your traces at: **https://smith.langchain.com**
+
+You'll see:
+- **Full conversation flows** with timing breakdowns
+- **LLM calls** with prompts, completions, and token usage
+- **Agent decision paths** through the LangGraph state machine
+- **PII detection results** with security insights
+- **Performance metrics** for each conversation turn
+
+### Advanced Usage
+
+```python
+from a2a_conversation.utils.observability import ConversationTracer
+
+tracer = ConversationTracer(project_name="my-custom-project")
+
+# Log custom metrics
+tracer.log_turn_metrics(
+    agent_name="Alice",
+    turn_count=5,
+    message_length=128,
+    response_time_ms=450.2
+)
+
+# Trace custom operations
+with tracer.trace_operation("custom_operation", tags=["analysis"]) as outputs:
+    # Your code here
+    outputs["result"] = "success"
+```
+
+### Benefits
+
+- **Debug faster**: See exactly what your agents are thinking and saying
+- **Optimize performance**: Identify slow LLM calls and bottlenecks
+- **Monitor quality**: Track PII violations and conversation health
+- **Collaborate**: Share traces with your team
+- **Analyze patterns**: Use LangSmith's analytics to understand agent behavior
+
+### Disabling Tracing
+
+Set `LANGCHAIN_TRACING_V2=false` in your `.env` or remove the variable entirely.
+
 ## Tuning knobs
 All configuration is via environment variables (see `.env.example`):
 - `MAX_TURNS`: how long they chat before touching grass
 - `LLM_MODEL`, `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`: control the LLM behavior
 - `KAFKA_BOOTSTRAP_SERVERS`: point to your Kafka cluster
 - `LOG_LEVEL`: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`: LangSmith observability settings
 - Personas: edit `src/a2a_conversation/main.py` → `create_agent_personas()` (pirates? pastry chefs? pirate pastry chefs?)
 
 

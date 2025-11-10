@@ -11,6 +11,15 @@ dependencies = [
     "langgraph>=1.0.2",
 ]
 
+[project.optional-dependencies]
+dashboard = [
+    "streamlit>=1.32.0",
+    "plotly>=5.18.0",
+]
+viz = [
+    "pygraphviz>=1.11",
+]
+
 [project.scripts]
 a2a-conversation = "a2a_conversation.main:main"
 

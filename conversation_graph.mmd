@@ -1,0 +1,19 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	listen(listen)
+	reason(reason)
+	respond(respond)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> listen;
+	listen --> reason;
+	reason --> respond;
+	respond -. &nbsp;end&nbsp; .-> __end__;
+	respond -. &nbsp;continue&nbsp; .-> listen;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

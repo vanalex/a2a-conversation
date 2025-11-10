@@ -4,11 +4,14 @@ Conversational AI agent using LangGraph and Kafka for message passing.
 import json
 import time
 from typing import Optional
+from contextlib import contextmanager
 
 from kafka import KafkaProducer, KafkaConsumer
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from ..config.settings import KafkaConfig, LLMConfig
 from ..utils.logging_config import get_logger
@@ -118,6 +121,7 @@ class ConversationalAgent:
 
         return workflow.compile()
 
+    @traceable(name="listen_for_message", tags=["kafka", "input"])
     def listen_for_message(self, state: ConversationState) -> ConversationState:
         """
         Listen for incoming messages from Kafka.
@@ -151,6 +155,11 @@ class ConversationalAgent:
 
         return state
 
+    @traceable(
+        name="reason_with_llm",
+        tags=["llm", "reasoning"],
+        metadata={"agent_type": "conversational"}
+    )
     def reason_with_llm(self, state: ConversationState) -> ConversationState:
         """
         Use LLM to reason about the conversation and generate response.
@@ -162,6 +171,18 @@ class ConversationalAgent:
             Updated conversation state with generated response
         """
         logger.info(f"Agent '{self.name}' reasoning with LLM")
+
+        # Add metadata to trace
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.metadata = {
+                    "agent_name": self.name,
+                    "turn_count": state.get("turn_count", 0),
+                    "conversation_length": len(state.get("conversation_history", [])),
+                }
+        except Exception:
+            pass  # Tracing not enabled or available
 
         # Build conversation context
         context = self._build_context(state)
@@ -220,6 +241,7 @@ Continue the conversation naturally based on what was just said."""
 
         return "\n".join(context_parts)
 
+    @traceable(name="send_response", tags=["kafka", "output"])
     def send_response(self, state: ConversationState) -> ConversationState:
         """
         Send response to Kafka.
@@ -288,6 +310,11 @@ Continue the conversation naturally based on what was just said."""
         )
         return "continue"
 
+    @traceable(
+        name="start_conversation",
+        run_type="chain",
+        tags=["agent", "conversation-starter"]
+    )
     def start_conversation(self, initial_message: str) -> None:
         """
         Start the conversation with an initial message.
@@ -296,6 +323,18 @@ Continue the conversation naturally based on what was just said."""
             initial_message: Initial message to start conversation
         """
         logger.info(f"Agent '{self.name}' starting conversation")
+
+        # Add trace metadata
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.metadata = {
+                    "agent_name": self.name,
+                    "role": "initiator",
+                    "initial_message": initial_message[:100],
+                }
+        except Exception:
+            pass
 
         initial_state = {
             "conversation_history": [],
@@ -316,9 +355,26 @@ Continue the conversation naturally based on what was just said."""
         logger.info(f"Agent '{self.name}' conversation ended")
         self.cleanup()
 
+    @traceable(
+        name="run_agent",
+        run_type="chain",
+        tags=["agent", "listener"]
+    )
     def run(self) -> None:
         """Run agent in listening mode."""
         logger.info(f"Agent '{self.name}' starting in listening mode")
+
+        # Add trace metadata
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.metadata = {
+                    "agent_name": self.name,
+                    "role": "listener",
+                    "max_turns": self.max_turns,
+                }
+        except Exception:
+            pass
 
         initial_state = {
             "conversation_history": [],
